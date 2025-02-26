@@ -1,50 +1,43 @@
 # app/controllers/hive_controller.py
 
 from flask import Blueprint, request, jsonify
-from app import db
-from app.models.hive import Hive
+from app.services.hive_service import get_all_hives, get_hive_by_id, create_hive, update_hive, delete_hive
 
 hive_blueprint = Blueprint('hive_blueprint', __name__)
 
 @hive_blueprint.route('/hives', methods=['GET'])
-def get_all_hives():
-    """Get a list of all hives."""
-    hives = Hive.query.all()
-    results = []
-    for hive in hives:
-        results.append({
-            'id': hive.id,
-            'name': hive.name,
-            'location_lat': hive.location_lat,
-            'location_lng': hive.location_lng,
-            'created_at': hive.created_at
-        })
+def get_hives():
+    """Get all hives."""
+    hives = get_all_hives()
+    results = [{
+        'id': hive.id,
+        'name': hive.name,
+        'location_lat': hive.location_lat,
+        'location_lng': hive.location_lng,
+        'created_at': hive.created_at
+    } for hive in hives]
     return jsonify(results), 200
 
 @hive_blueprint.route('/hives', methods=['POST'])
-def create_hive():
+def add_hive():
     """Create a new hive."""
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "No input data provided"}), 400
-
-    name = data.get('name')
-    lat = data.get('location_lat')
-    lng = data.get('location_lng')
-
-    if not all([name, lat, lng]):
+    if not data or not all([data.get('name'), data.get('location_lat'), data.get('location_lng')]):
         return jsonify({"error": "Missing required fields"}), 400
-
-    new_hive = Hive(name=name, location_lat=lat, location_lng=lng)
-    db.session.add(new_hive)
-    db.session.commit()
-
-    return jsonify({"message": f"Hive '{name}' created successfully"}), 201
+    
+    hive = create_hive(data['name'], data['location_lat'], data['location_lng'])
+    return jsonify({
+        "message": f"Hive '{hive.name}' created successfully",
+        "id": hive.id
+    }), 201
 
 @hive_blueprint.route('/hives/<int:hive_id>', methods=['GET'])
-def get_hive(hive_id):
-    """Get a single hive by ID."""
-    hive = Hive.query.get_or_404(hive_id)
+def get_single_hive(hive_id):
+    """Retrieve a specific hive."""
+    hive = get_hive_by_id(hive_id)
+    if not hive:
+        return jsonify({"error": "Hive not found"}), 404
+
     return jsonify({
         'id': hive.id,
         'name': hive.name,
@@ -54,22 +47,22 @@ def get_hive(hive_id):
     }), 200
 
 @hive_blueprint.route('/hives/<int:hive_id>', methods=['PUT'])
-def update_hive(hive_id):
+def modify_hive(hive_id):
     """Update an existing hive."""
-    hive = Hive.query.get_or_404(hive_id)
     data = request.get_json()
+    hive = update_hive(hive_id, data.get('name'), data.get('location_lat'), data.get('location_lng'))
+    
+    if not hive:
+        return jsonify({"error": "Hive not found"}), 404
 
-    hive.name = data.get('name', hive.name)
-    hive.location_lat = data.get('location_lat', hive.location_lat)
-    hive.location_lng = data.get('location_lng', hive.location_lng)
-
-    db.session.commit()
     return jsonify({"message": f"Hive '{hive.name}' updated successfully"}), 200
 
 @hive_blueprint.route('/hives/<int:hive_id>', methods=['DELETE'])
-def delete_hive(hive_id):
+def remove_hive(hive_id):
     """Delete a hive."""
-    hive = Hive.query.get_or_404(hive_id)
-    db.session.delete(hive)
-    db.session.commit()
+    hive = delete_hive(hive_id)
+    
+    if not hive:
+        return jsonify({"error": "Hive not found"}), 404
+
     return jsonify({"message": "Hive deleted successfully"}), 200
