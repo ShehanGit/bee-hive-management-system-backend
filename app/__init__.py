@@ -24,5 +24,10 @@ def create_app():
     # Register Blueprints (routes)
     from app.routes.api import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
+
+    # Start the APScheduler job for periodic sensor data fetching
+    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        from app.scheduler import start_scheduler
+        start_scheduler(app)
     
     return app
