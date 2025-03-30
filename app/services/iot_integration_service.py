@@ -2,7 +2,8 @@ import requests
 from app.services.sensor_service import create_sensor_data
 
 # Update this to match your IoT device IP (or hostname)
-IOT_DEVICE_URL = "http://192.168.248.63"
+IOT_DEVICE_URL = "http://192.168.45.63"
+
 
 def fetch_and_save_iot_data(hive_id):
     """
