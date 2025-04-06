@@ -1,5 +1,6 @@
 # app/__init__.py
 from flask import Flask
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import os
@@ -9,6 +10,9 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
+
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+
     
     # Load default configuration (from app/config.py)
     app.config.from_object('app.config.Config')
