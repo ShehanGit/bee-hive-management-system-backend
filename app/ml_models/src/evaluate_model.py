@@ -36,7 +36,7 @@ if __name__ == "__main__":
     from feature_engineering import engineer_features
 
     # ✅ FIX: Ensure proper file path format
-    data = load_and_clean_data("./data/hive_data.xlsx")  # Fixed path
+    data = load_and_clean_data("../data/hive_data.xlsx")  # Fixed path
     data_fe = engineer_features(data)
     
     evaluate_model(data_fe, "random_forest_model.pkl")

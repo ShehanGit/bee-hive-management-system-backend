@@ -1,45 +1,56 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS  # Import CORS from flask_cors
 import pandas as pd
 import joblib
-import numpy as np
-from feature_engineering import engineer_features
+from feature_engineering import engineer_features  # Assuming this is in your project
 
-def predict_honey_production(input_data: pd.DataFrame, model_path="random_forest_model.pkl"):
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+# Load the model once when the app starts
+model = joblib.load("random_forest_model.pkl")
+expected_features = model.feature_names_in_  # Ensure your model supports this attribute
+
+def prepare_input_data(input_data: dict) -> pd.DataFrame:
     """
-    Given a DataFrame with new candidate locations (and necessary features),
-    return the predicted honey production from the trained Random Forest model.
+    Convert JSON input data to a pandas DataFrame,
+    apply feature engineering, and ensure all expected features are present.
     """
-    # Load model
-    model = joblib.load(model_path)
+    df = pd.DataFrame(input_data)
     
-    # Make sure input data has the correct features
-    input_data_fe = engineer_features(input_data)
+    # Engineer features using your custom function
+    df = engineer_features(df)
     
-    # Get expected feature names from the trained model
-    expected_features = model.feature_names_in_
-    
-    # Ensure the new input data has the same features as the model
+    # Add any missing features with a default value (e.g., 0)
     for col in expected_features:
-        if col not in input_data_fe.columns:
-            input_data_fe[col] = 0  # Add missing columns with default value
+        if col not in df.columns:
+            df[col] = 0
+
+    # Reorder columns to match the model's expectations
+    df = df[expected_features]
+    return df
+
+@app.route('/predict', methods=['POST', 'OPTIONS'])
+def predict():
+    """
+    Expects a JSON payload that can be converted to a pandas DataFrame.
+    Returns predictions from the pre-loaded model.
+    """
+    if request.method == 'OPTIONS':
+        return '', 200  # Handle CORS preflight request
     
-    # Reorder columns to match training set
-    input_data_fe = input_data_fe[expected_features]
+    # Get JSON data from the request
+    data = request.get_json(force=True)
     
-    # Predict honey production
-    predictions = model.predict(input_data_fe)
-    return predictions
+    # Prepare the input data
+    input_df = prepare_input_data(data)
+    
+    # Get predictions from the model
+    predictions = model.predict(input_df)
+    
+    # Return the predictions as JSON
+    return jsonify({'predictions': predictions.tolist()})
 
 if __name__ == "__main__":
-    # Example: New hive candidate locations (ensure all necessary features are included)
-    new_data = pd.DataFrame({
-        'hive_lat': [7.2914],  # Single hive location
-        'hive_lng': [80.6337],
-        'dist_to_water_source': [3.4],
-        'dist_to_feeding_station': [1.5],
-        'dist_to_flowering_area': [3.0],
-        'humidity': [65],
-        'temperature': [32]
-    })
-
-    predicted_values = predict_honey_production(new_data, "random_forest_model.pkl")
-    print("Predicted honey production for new locations:", predicted_values)
+    # Run the Flask app on localhost, port 8080
+    app.run(host='0.0.0.0', port=5002, debug=True)
